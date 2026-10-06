@@ -1,0 +1,20 @@
+name: aud_midi_linux
+description: "Linux backend for aud_midi: ALSA sequencer, BlueZ, Avahi"
+version: 0.0.0
+homepage: https://github.com/audanika/aud_midi_linux
+repository: https://github.com/audanika/aud_midi_linux
+topics:
+  - midi
+  - audio
+  - music
+platforms:
+  linux:
+
+environment:
+  sdk: ^3.12.2
+
+dev_dependencies:
+  dna_audanika: ^0.0.2
+  helix: ^1.11.0
+  lints: ^6.1.0
+  test: ^1.32.0
