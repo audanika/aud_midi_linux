@@ -10,6 +10,7 @@ Teil der aud_midi-Familie, siehe [aud_midi](https://github.com/audanika/aud_midi
 - UMP-Clients ab Kernel 6.5
 - BLE-MIDI über BlueZ-D-Bus
 - Avahi-Advertising
+- BLE-Peripheral über den BlueZ-GATT-Server
 
 ## Stand
 
