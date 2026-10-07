@@ -2,7 +2,7 @@
 
 The Linux backend of aud_midi in pure Dart: ALSA sequencer (MIDI 1.0 and UMP) through FFI, BLE over BlueZ and Avahi over D-Bus.
 
-Part of the aud_midi family, see [aud_midi](https://github.com/audanika/aud_midi).
+Part of the aud_midi family, see [aud_midi](https://github.com/audmidi/aud_midi).
 
 ## Goals
 
@@ -14,13 +14,127 @@ Part of the aud_midi family, see [aud_midi](https://github.com/audanika/aud_midi
 
 ## State
 
-Boilerplate only. The implementation follows in later tickets, see the plan in [aud_midi_pm](https://github.com/audanika/aud_midi_pm/blob/main/doc/2026-Q4/tickets/2026-10-06-aud_midi_01-initial-midi-implementation.md).
+Implemented (plan step 3 and the Linux part of step 7):
+
+- `LinuxMidiBackend` (`MidiBackend`, name `alsa`): ports of all other
+  sequencer clients (inputs and outputs, transport from client and port
+  type, UMP endpoint and function blocks), dynamic virtual ports,
+  announce-port hotplug, real-time queue for scheduled sends and
+  `cancelPending`, receive time stamps on the package clock, UMP mode
+  (`snd_seq_set_client_midi_version`) with MIDI 1.0 fallback, BLE-MIDI
+  peripherals through core's `MidiBleBluetoothBackend`.
+- `MidiBlueZBleTransport` (`MidiBleTransport`): scan, connect, notify and
+  write without response on the BLE-MIDI characteristic over BlueZ.
+- `MidiAvahiServiceAdvertiser` (`MidiServiceAdvertiser`): DNS-SD
+  registration through Avahi with collision renaming.
+
+How it is verified:
+
+- Unit tests on the Dart VM (macOS): 100 % line coverage per file. All
+  logic sits behind small interfaces with fakes; the BlueZ and Avahi code
+  runs over a real D-Bus connection against in-process mock services; a
+  layout test checks the generated structs (`snd_seq_event_t` 28 bytes,
+  `snd_seq_ump_event_t` 32 bytes).
+- Not verified on real Linux in this ticket: the FFI glue
+  (`lib/src/alsa/ffi_*.dart`, coverage-ignored), the reader isolate on a
+  real handle, BlueZ and Avahi daemons. The Linux tests below cover the
+  FFI glue; they are skipped on other systems.
+
+### Run the Linux tests
+
+```bash
+sudo apt-get install libasound2
+sudo modprobe snd-seq
+dart test test/alsa/ffi_alsa_sequencer_test.dart \
+  test/alsa/ffi_alsa_reader_test.dart test/alsa/ffi_alsa_system_test.dart
+```
+
+They loop the backend's own virtual source into its own virtual
+destination (bytes, order, time stamps, scheduling deviation, cancel,
+SysEx, UMP when available) and watch hotplug of a helper client; no
+hardware is needed.
+
+### Permissions and packaging
+
+- `libasound2` at runtime, `/dev/snd/seq` (kernel module `snd-seq`), on
+  some distributions the user in the group `audio`.
+- BlueZ 5 with access to the system D-Bus; the Avahi daemon for
+  advertising.
+- Snap: interfaces `alsa`, `bluez`, `avahi-control`, `network`.
+- Flatpak: `--device=all`, `--system-talk-name=org.bluez`,
+  `--system-talk-name=org.freedesktop.Avahi`.
 
 ## Installation
 
 ```bash
 dart pub add aud_midi_linux
 ```
+
+## Documentation
+
+- The plan: [aud_midi_pm](https://github.com/audmidi/aud_midi_pm/blob/main/doc/2026-Q4/tickets/2026-10-06-aud_midi_01-initial-midi-implementation.md)
+- The guides: [doc/guides](doc/guides)
+
+## Code Examples
+
+```dart
+import 'package:aud_midi_core/aud_midi_core.dart';
+import 'package:aud_midi_linux/aud_midi_linux.dart';
+import 'package:aud_midi_standard/aud_midi_standard.dart';
+
+Future<void> main() async {
+  final engine = MidiEngine(backend: LinuxMidiBackend(clientName: 'My App'));
+  await engine.open();
+  for (final port in engine.ports) {
+    print('${port.direction.name}: ${port.name} (${port.id})');
+  }
+  final out = await engine.createVirtualPort(
+    MidiVirtualPortSpec(name: 'My App Out', direction: MidiDirection.output),
+  );
+  await engine.openOutput(out.id);
+  await engine.send(
+    out.id,
+    const MidiNoteOn(channel: 0, note: 60, velocity: 100),
+    at: engine.clock.now() + const Duration(milliseconds: 100),
+  );
+  await engine.close();
+}
+```
+
+## How It Works
+
+- Two sequencer clients: the output client (the app's name) sends
+  directly addressed events, owns the virtual sources and the queue; the
+  input client (`<name> (in)`) owns the virtual destinations and one input
+  port subscribed to every opened source and to the announce port.
+- A reader isolate blocks in `snd_seq_event_input` on the input client,
+  copies each event into Dart objects and sends batches to the backend;
+  a wake-up event with a random token stops it.
+- Received events carry the queue's real time, mapped over
+  `CLOCK_MONOTONIC` to the package clock; due sends go out directly,
+  later ones on the queue with their time; `cancelPending` removes them by
+  destination (and by tag for own sources).
+- With alsa-lib 1.2.10+ and kernel 6.5+ both clients switch to UMP
+  (MIDI 2.0); the kernel converts to and from MIDI 1.0 clients. Otherwise
+  ports exchange MIDI 1.0 bytes, converted like alsa-lib's
+  `snd_midi_event`, SysEx in chunks of 256 bytes.
+- Port ids are `alsa:<client>:<port>:in|out`; a reused client number gets
+  a generation suffix (`alsa:20#1:0:in`).
+
+### Regenerate the ALSA bindings
+
+`lib/src/alsa/alsa_bindings.g.dart` is generated by ffigen from the
+alsa-lib headers, parsed for Linux x86_64 against the stub system headers
+in `tool/alsa_bindings/stubs` (so the result does not depend on the host;
+aarch64 has the same layouts):
+
+```bash
+dart run tool/alsa_bindings/generate.dart              # clones v1.2.16.1
+dart run tool/alsa_bindings/generate.dart --alsa-lib ../alsa-lib
+```
+
+It needs libclang (Xcode on macOS, `libclang-dev` on Linux). Functions
+newer than alsa-lib 1.2.10 are looked up at run time.
 
 ## Contributing
 
