@@ -2,7 +2,7 @@
 
 Das Linux-Backend von aud_midi in reinem Dart: ALSA-Sequencer (MIDI 1.0 und UMP) über FFI, BLE über BlueZ und Avahi über D-Bus.
 
-Teil der aud_midi-Familie, siehe [aud_midi](https://github.com/audanika/aud_midi).
+Teil der aud_midi-Familie, siehe [aud_midi](https://github.com/audmidi/aud_midi).
 
 ## Ziele
 
@@ -73,7 +73,7 @@ dart pub add aud_midi_linux
 
 ## Dokumentation
 
-- Der Plan: [aud_midi_pm](https://github.com/audanika/aud_midi_pm/blob/main/doc/2026-Q4/tickets/2026-10-06-aud_midi_01-initial-midi-implementation.md)
+- Der Plan: [aud_midi_pm](https://github.com/audmidi/aud_midi_pm/blob/main/doc/2026-Q4/tickets/2026-10-06-aud_midi_01-initial-midi-implementation.md)
 - Die Guides: [doc/guides](doc/guides)
 
 ## Codebeispiele
