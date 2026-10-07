@@ -10,6 +10,7 @@ Part of the aud_midi family, see [aud_midi](https://github.com/audmidi/aud_midi)
 - UMP clients on kernel 6.5+
 - BLE MIDI over BlueZ D-Bus
 - Avahi advertising
+- BLE peripheral through the BlueZ GATT server
 
 ## State
 
