@@ -6,6 +6,7 @@
 
 - Add boilerplate
 - Add package dependencies
+- Add the Linux backend: ALSA sequencer, BlueZ, Avahi
 
 ### Changed
 
