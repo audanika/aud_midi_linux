@@ -1,6 +1,6 @@
 name: aud_midi_linux
 description: "Linux backend for aud_midi: ALSA sequencer, BlueZ, Avahi"
-version: 0.0.0
+version: 0.1.0
 homepage: https://github.com/audmidi/aud_midi_linux
 repository: https://github.com/audmidi/aud_midi_linux
 topics:
